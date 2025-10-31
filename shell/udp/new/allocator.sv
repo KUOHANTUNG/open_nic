@@ -57,11 +57,10 @@ module allocator#(
     localparam [3:0]	
         ST_ALLOC_IDLE   = 0,
         ST_ALLOC_BEGIN  = 1,
-        ST_ALLOC_DECIDE  = 2,
-        ST_ALLOC_GET_FROM_FREE_CACHE = 3,
-        ST_ALLOC_GET_FROM_ALLOCATE_CACHE = 4,
-        ST_ALLOC_CLEAR = 5;
+        ST_ALLOC_DECIDE  = 2;
     reg [3:0] alloc_state;  
+            
+     
      
     localparam [3:0]
        ST_FREE_BEGIN = 0,
@@ -81,6 +80,10 @@ module allocator#(
  reg [4:0]   cache_counter_alloc  [CLASS_COUNT-1:0];
  reg         cache_pointer_alloc_ready[CLASS_COUNT-1:0];
  
+ reg        alloc_cache_front_ready[CLASS_COUNT-1:0];
+ reg        alloc_cache_back_ready[CLASS_COUNT-1:0];
+ 
+ 
  reg [11:0]  cache_pointer_free  [CLASS_COUNT-1:0][cache_depth-1:0];  
  reg [4:0]   cache_pointer_free_cons_ptr  [CLASS_COUNT-1:0];
  reg [4:0]   cache_pointer_free_prod_ptr  [CLASS_COUNT-1:0];
@@ -90,6 +93,8 @@ module allocator#(
  reg [11:0]  recycle_cache_pointer_free  [CLASS_COUNT-1:0][cache_depth-1:0]; 
  reg [4:0]   recycle_cache_pointer_free_con_ptr [CLASS_COUNT-1:0];
  reg [4:0]   recycle_cache_pointer_free_pro_ptr [CLASS_COUNT-1:0];
+ 
+ reg        has_recycled[CLASS_COUNT-1:0];
  
  localparam logic [15:0] CLASS_BASE [CLASS_COUNT] = '{16'h0000, 16'h4000, 16'h8000, 16'hC000};
 
@@ -118,40 +123,42 @@ module allocator#(
                 end
             end
             ST_ALLOC_BEGIN: begin
+                if(alloc_valid && alloc_ready)begin
+                    alloc_valid <= 0;
+                    alloc_pointer <=0;
+                end  
                 if (req_valid==1 && req_ready==1) begin
                     in_class <= (req_data <= CLASS1*BLOCKSIZE) ? 0 : (req_data<=CLASS2*BLOCKSIZE) ? 1 : (req_data<=CLASS3*BLOCKSIZE) ? 2 : (req_data<=CLASS4*BLOCKSIZE) ? 3 : 3; 
                     neededsize <= (req_data <= CLASS1*BLOCKSIZE) ? CLASS1 : (req_data<=CLASS2*BLOCKSIZE) ? CLASS2 : (req_data<=CLASS3*BLOCKSIZE) ? CLASS3 : (req_data<=CLASS4*BLOCKSIZE) ? CLASS4 : CLASS4;
-                    req_ready <= 0; 
-                    alloc_state <= ST_ALLOC_DECIDE;       
-                end
+                    req_ready <= 0;   
+                    alloc_state <= ST_ALLOC_DECIDE;     
+                end                         
             end
-            ST_ALLOC_DECIDE: begin
-                req_ready <= 1; 
-                if((cache_pointer_free_cons_ptr[in_class]&(cache_depth-1) )== (cache_pointer_free_prod_ptr[in_class]&(cache_depth-1)))begin
-                    alloc_state <= ST_ALLOC_GET_FROM_ALLOCATE_CACHE;
-                end
-                else begin                       
-                    alloc_state <= ST_ALLOC_GET_FROM_FREE_CACHE;
-                end
-            end
-            ST_ALLOC_GET_FROM_FREE_CACHE: begin
-                cache_pointer_free_cons_ptr[in_class] <= cache_pointer_free_cons_ptr[in_class] + 1'b1;              
-                alloc_valid <= 1;
-                alloc_state <= ST_ALLOC_CLEAR;
-                alloc_pointer <=  neededsize*(cache_pointer_free[in_class][cache_pointer_free_cons_ptr[in_class]&(cache_depth-1)]) + CLASS_BASE[in_class];
-            end
-            ST_ALLOC_GET_FROM_ALLOCATE_CACHE: begin
-                cache_counter_alloc[in_class] <= cache_counter_alloc[in_class] + 1;
-                req_ready <= 1;
-                alloc_valid <= 1; 
-                alloc_pointer <=  neededsize*(cache_pointer_alloc[in_class][cache_counter_alloc[in_class]&(cache_depth-1)]) + CLASS_BASE[in_class];
-                alloc_state <= ST_ALLOC_CLEAR;
-            end
-            ST_ALLOC_CLEAR: begin
-                if(alloc_ready == 1)begin
-                    alloc_valid <= 0;
-                    alloc_state <= ST_ALLOC_BEGIN;
-                end  
+            ST_ALLOC_DECIDE:begin
+                if(alloc_ready) begin            
+                    if((cache_pointer_free_cons_ptr[in_class]&(cache_depth-1) )!= (cache_pointer_free_prod_ptr[in_class]&(cache_depth-1)))begin
+                        //
+                        cache_pointer_free_cons_ptr[in_class] <= cache_pointer_free_cons_ptr[in_class] + 1'b1;              
+                        alloc_valid <= 1;
+                        req_ready <= 1;
+                        alloc_state <= ST_ALLOC_BEGIN;
+                        alloc_pointer <=  neededsize*(cache_pointer_free[in_class][cache_pointer_free_cons_ptr[in_class]&(cache_depth-1)]) + CLASS_BASE[in_class];
+                    end
+                    else begin     
+                        if((alloc_cache_front_ready[in_class] && ((cache_counter_alloc[in_class]&(cache_depth-1))<cache_depth/2))||(alloc_cache_back_ready[in_class] &&(cache_counter_alloc[in_class]&(cache_depth-1))>=cache_depth/2))begin
+                            cache_counter_alloc[in_class] <= cache_counter_alloc[in_class] + 1;
+                            has_recycled[in_class] <= '0;
+                            alloc_valid <= 1;
+                            req_ready <= 1;  
+                            alloc_pointer <=  neededsize*(cache_pointer_alloc[in_class][cache_counter_alloc[in_class]&(cache_depth-1)]) + CLASS_BASE[in_class];
+                            alloc_state <= ST_ALLOC_BEGIN;
+                        end
+                        else begin
+                            alloc_valid <= 0;
+                            req_ready <= 0;
+                        end                             
+                    end
+                end 
             end
         endcase 
     end 
@@ -217,6 +224,7 @@ module allocator#(
     reg [3:0] alloc_get_pointer_number[CLASS_COUNT-1:0]; 
     reg       alloc_exe_not_first[CLASS_COUNT-1:0];
     reg [10:0] alloc_exe_ptr[CLASS_COUNT-1:0];
+
     localparam [3:0]
         ST_FREE_RECYCLE_BEGIN = 0,
         ST_FREE_RECYCLE_DECIDE_READ = 1,  
@@ -307,7 +315,6 @@ module allocator#(
    wire [15:0]     m_in[CLASS_COUNT-1:0];
    wire [7:0][3:0] idx[CLASS_COUNT-1:0]; 
    wire [3:0]      cnt[CLASS_COUNT-1:0];  
-   wire [15:0]     buf_to_m_in[CLASS_COUNT-1:0];
   generate for (genvar gv=0; gv<CLASS_COUNT; gv=gv+1) begin: recyclors_alloc
     assign m_in[gv] = ((alloc_exe_ptr[gv] & (MEMORY_WIDTH-1)) == 504 ) ? {8'b1111_1111,alloc_douta_buf[gv][511:504]} : alloc_douta_buf[gv][(alloc_exe_ptr[gv] & (MEMORY_WIDTH-1)) +: 16] ;
       pick8_indices16 pick8_indices16_inst(
@@ -331,6 +338,10 @@ module allocator#(
             alloc_get_pointer_number[gv] <= '0;
             alloc_exe_not_first[gv] <= '0;
             bram_clear_counter[gv] <= '0; 
+            alloc_douta_buf[gv] <= '0;
+            alloc_cache_front_ready[gv] <= '0; 
+            alloc_cache_back_ready[gv] <= '0; 
+            has_recycled[gv] <='0;
         end
         else begin
             case (alloc_recycle_state [gv])
@@ -352,24 +363,35 @@ module allocator#(
                     for(int i  = 0; i < cache_depth; i++)begin
                         cache_pointer_alloc[gv][i] <= i;
                         alloc_douta_buf[gv][i] <= 1'b1;
-                    end           
-                    alloc_exe_ptr[gv] <= alloc_exe_ptr[gv] + cache_depth;
+                    end 
+                    alloc_cache_front_ready[gv] <= '1; 
+                    alloc_cache_back_ready[gv] <= '1;           
+                    alloc_exe_ptr[gv] <= alloc_exe_ptr[gv] + cache_depth/2;
                     cache_pointer_alloc_ready[gv] <= 1;
                     alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_BEGIN;
                 end
                 ST_ALLOC_RECYCLE_BEGIN: begin
                     alloc_wea[gv] <= 1'b0;
-                    if((cache_counter_alloc[gv]&(cache_depth-1)) == cache_depth/2 -1)begin
-                        alloc_front_back[gv] <= 0;  
-                    end
-                    if((cache_counter_alloc[gv]&(cache_depth-1)) == cache_depth - 1)begin
-                        alloc_front_back[gv] <= 1;
-                    end
-                    if((alloc_exe_ptr[gv]& (MEMORY_WIDTH-1)) == 0)begin
-                        alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE_READ;
+                    if(((cache_counter_alloc[gv]&(cache_depth-1)) == cache_depth/2) && !has_recycled[gv])begin
+                        alloc_front_back[gv] <= 0; 
+                        alloc_cache_front_ready[gv]<= 0;
+                        if((alloc_exe_ptr[gv]& (MEMORY_WIDTH-1)) == 0)begin
+                            alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE_READ;
                         end
-                    else 
-                        alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE;  
+                        else begin
+                            alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE;
+                        end               
+                    end
+                    if(((cache_counter_alloc[gv]&(cache_depth-1)) == cache_depth - 1) && !has_recycled[gv])begin
+                        alloc_front_back[gv] <= 1;
+                        alloc_cache_back_ready[gv]<= 0;
+                        if((alloc_exe_ptr[gv]& (MEMORY_WIDTH-1)) == 0)begin
+                            alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE_READ;
+                        end
+                        else begin
+                            alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE;
+                        end                         
+                    end
                 end
                 ST_ALLOC_RECYCLE_EXE_READ: begin 
                    alloc_wea[gv] <= 1'b0;               
@@ -384,33 +406,45 @@ module allocator#(
                     alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE;
                 end
                 ST_ALLOC_RECYCLE_EXE: begin
-                    if(alloc_get_pointer_number[gv] < 8)begin
-                        if(((alloc_exe_ptr[gv] & (MEMORY_WIDTH-1)) == '0 )&& alloc_exe_not_first[gv] ) begin
-                            alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE_WRITE_BACK;
-                        end
-                        else begin
-                            alloc_exe_not_first[gv] <= 1'b1;
-                            for(int i = 0; i <  (cnt[gv] + alloc_get_pointer_number[gv] > 8) ? (8-alloc_get_pointer_number[gv]) : cnt[gv] ; i++)begin
-                                if(alloc_front_back[gv])begin
-                                    cache_pointer_alloc[gv][i+8] <= idx[gv][i];
-                                end                       
-                                else begin
-                                    cache_pointer_alloc[gv][i] <= idx[gv][i];
-                                end  
-                                alloc_douta_buf[gv][alloc_exe_ptr[gv] + idx[gv][i]] <= 1'b1;                   
-                            end
-                            if(alloc_get_pointer_number[gv] +  cnt[gv] > 8)begin
-                                alloc_exe_ptr[gv] <= alloc_exe_ptr[gv];
+                    if((cache_counter_alloc[gv]&(cache_depth-1)) != cache_depth - 1)begin
+                        if(alloc_get_pointer_number[gv] < 8)begin
+                            if(((alloc_exe_ptr[gv] & (MEMORY_WIDTH-1)) == '0 )&& alloc_exe_not_first[gv] ) begin
+                                alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_EXE_WRITE_BACK;
                             end
                             else begin
-                                alloc_exe_ptr[gv] <= alloc_exe_ptr[gv] + 8;
-                            end
+                                alloc_exe_not_first[gv] <= 1'b1;
+                                for(int i = 0; i < ((cnt[gv] + alloc_get_pointer_number[gv] > 8)
+                                    ? (8 - alloc_get_pointer_number[gv])
+                                    :  cnt[gv]); i++)begin
+                                    if(alloc_front_back[gv])begin
+                                        cache_pointer_alloc[gv][i+8] <= ((alloc_exe_ptr[gv]  & (MEMORY_WIDTH-1))+ idx[gv][i]) + (bram_addr_counter[gv]&(BRAM_DEPTH[gv]-1)) * MEMORY_WIDTH ;
+                                        
+                                    end                       
+                                    else begin
+                                        cache_pointer_alloc[gv][i] <= ((alloc_exe_ptr[gv]  & (MEMORY_WIDTH-1))+ idx[gv][i]) + (bram_addr_counter[gv]&(BRAM_DEPTH[gv]-1)) * MEMORY_WIDTH;
+                                    end  
+                                    alloc_douta_buf[gv][((alloc_exe_ptr[gv] + idx[gv][i]) & (MEMORY_WIDTH-1)) ] <= 1'b1;                  
+                                end
+                                if(alloc_get_pointer_number[gv] +  cnt[gv] >= 8)begin
+                                    alloc_exe_ptr[gv] <= alloc_exe_ptr[gv];
+                                end
+                                else begin
+                                    alloc_exe_ptr[gv] <= alloc_exe_ptr[gv] + 8;
+                                end
                                 alloc_get_pointer_number[gv] <= alloc_get_pointer_number[gv] +  cnt[gv];
                             end
-                    end
-                    else begin
-                        alloc_get_pointer_number[gv] <= 0; 
-                        alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_BEGIN;                    
+                        end
+                        else begin
+                            if(alloc_front_back[gv])begin
+                                alloc_cache_back_ready[gv] <= 1'b1;
+                            end
+                            else begin
+                                alloc_cache_front_ready[gv] <= 1'b1;
+                            end
+                            has_recycled[gv] <= 1'b1;
+                            alloc_get_pointer_number[gv] <= 0; 
+                            alloc_recycle_state[gv] <= ST_ALLOC_RECYCLE_BEGIN;                    
+                        end
                     end
                 end
                 ST_ALLOC_RECYCLE_EXE_WRITE_BACK: begin
