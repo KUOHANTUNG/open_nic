@@ -40,46 +40,18 @@ module uram_para#(
     input  logic        EN_B
 );
 
-    localparam int BANKS = cascade_level;
+   localparam int BANKS = cascade_level;
     localparam int SELW  = (BANKS<=1) ? 1 : $clog2(BANKS);
-    logic [ROWW-1:0] addr_lo_a_q, addr_lo_b_q;
-    logic [SELW-1:0] selA_q, selB_q;
-    logic [8:0]      bwe_a_q, bwe_b_q;
-    logic [71:0]     din_a_q, din_b_q;
-    logic            en_a_q,  en_b_q;
-    logic            rdbwr_a_q, rdbwr_b_q;
 
-    always_ff @(posedge clk) begin
-        if (!rst_n) begin
-            addr_lo_a_q <= '0;
-            addr_lo_b_q <= '0;
-            selA_q      <= '0;
-            selB_q      <= '0;
-            bwe_a_q     <= '0;
-            bwe_b_q     <= '0;
-            din_a_q     <= '0;
-            din_b_q     <= '0;
-            en_a_q      <= 1'b0;
-            en_b_q      <= 1'b0;
-            rdbwr_a_q   <= 1'b0; 
-            rdbwr_b_q   <= 1'b0;
-        end else begin
-            addr_lo_a_q <= ADDR_A[ROWW-1:0];
-            addr_lo_b_q <= ADDR_B[ROWW-1:0];
-            selA_q      <= ADDR_A[ROWW+SELW-1 : ROWW];
-            selB_q      <= ADDR_B[ROWW+SELW-1 : ROWW];
-            bwe_a_q     <= BWE_A;
-            bwe_b_q     <= BWE_B;
-            din_a_q     <= DIN_A;
-            din_b_q     <= DIN_B;
-            en_a_q      <= EN_A;
-            en_b_q      <= EN_B;
-            rdbwr_a_q   <= RDB_WR_A;
-            rdbwr_b_q   <= RDB_WR_B;
-        end
-    end
+
+
+ 
+    wire [SELW-1:0] selA = ADDR_A[ROWW+SELW-1 : ROWW];
+    wire [SELW-1:0] selB = ADDR_B[ROWW+SELW-1 : ROWW];
+
 
     wire rst = ~rst_n;
+
 
     logic [22:0] wire_ADDR_A [BANKS-1:0];
     logic [22:0] wire_ADDR_B [BANKS-1:0];
@@ -91,10 +63,14 @@ module uram_para#(
     logic [71:0] wire_DOUT_B [BANKS-1:0];
     logic        wire_EN_A   [BANKS-1:0];
     logic        wire_EN_B   [BANKS-1:0];
+    logic        wire_RDACCESS_A [BANKS-1:0];
+    logic        wire_RDACCESS_B [BANKS-1:0];
     logic        wire_RDB_WR_A   [BANKS-1:0];
     logic        wire_RDB_WR_B   [BANKS-1:0];
 
+
     always_comb begin
+ 
         for (int i = 0; i < BANKS; i++) begin
             wire_ADDR_A[i]   = '0;
             wire_BWE_A[i]    = '0;
@@ -102,14 +78,16 @@ module uram_para#(
             wire_EN_A[i]     = 1'b0;
             wire_RDB_WR_A[i] = 1'b0; 
         end
-        if (selA_q < BANKS) begin
-            wire_ADDR_A[selA_q]   = { {(23-ROWW){1'b0}}, addr_lo_a_q };
-            wire_BWE_A[selA_q]    = bwe_a_q;
-            wire_DIN_A[selA_q]    = din_a_q;
-            wire_EN_A[selA_q]     = en_a_q;
-            wire_RDB_WR_A[selA_q] = rdbwr_a_q;
+
+        if (selA < BANKS) begin
+            wire_ADDR_A[selA]   = { {(23-ROWW){1'b0}}, ADDR_A[ROWW-1:0] }; 
+            wire_BWE_A[selA]    = BWE_A;
+            wire_DIN_A[selA]    = DIN_A;
+            wire_EN_A[selA]     = EN_A;
+            wire_RDB_WR_A[selA] = RDB_WR_A;
         end
     end
+
 
     always_comb begin
         for (int i = 0; i < BANKS; i++) begin
@@ -119,17 +97,19 @@ module uram_para#(
             wire_EN_B[i]     = 1'b0;
             wire_RDB_WR_B[i] = 1'b0;
         end
-        if (selB_q < BANKS) begin
-            wire_ADDR_B[selB_q]   = { {(23-ROWW){1'b0}}, addr_lo_b_q };
-            wire_BWE_B[selB_q]    = bwe_b_q;
-            wire_DIN_B[selB_q]    = din_b_q;
-            wire_EN_B[selB_q]     = en_b_q;
-            wire_RDB_WR_B[selB_q] = rdbwr_b_q;
+        if (selB < BANKS) begin
+            wire_ADDR_B[selB]   = { {(23-ROWW){1'b0}}, ADDR_B[ROWW-1:0] };
+            wire_BWE_B[selB]    = BWE_B;
+            wire_DIN_B[selB]    = DIN_B;
+            wire_EN_B[selB]     = EN_B;
+            wire_RDB_WR_B[selB] = RDB_WR_B;
         end
     end
 
-    assign DOUT_A     = (selA_q < BANKS) ? wire_DOUT_A[selA_q]     : '0;
-    assign DOUT_B     = (selB_q < BANKS) ? wire_DOUT_B[selB_q]     : '0;
+
+    assign DOUT_A     = (selA < BANKS) ? wire_DOUT_A[selA]     : '0;
+    assign DOUT_B     = (selB < BANKS) ? wire_DOUT_B[selB]     : '0;
+
 
     generate
         for (genvar i = 0; i < BANKS; i++) begin : G_URAM
@@ -160,7 +140,7 @@ module uram_para#(
                 .RST_MODE_B("SYNC"),
                 .USE_EXT_CE_A("FALSE"),
                 .USE_EXT_CE_B("FALSE")
-            ) URAM288_inst (
+            ) URAM288_BASE_inst (
                 .CLK(clk),
                 .RST_A(rst),
                 .RST_B(rst),
