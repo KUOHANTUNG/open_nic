@@ -129,6 +129,7 @@ always@(posedge clk)begin
                vallen <= s_axis_tdata[32+15:32]-s_axis_tdata[64-8-1:64-16];
                inready <= 1;
                state <= ST_DATA_FETCH;
+               value_last_buf <= '0;
             end
             else if (s_axis_tvalid==1)begin
                 force_throw <= 1;
@@ -147,31 +148,48 @@ always@(posedge clk)begin
                m_key_valid <= 1;
                m_key_data <= s_axis_tdata[HEAD_LENTH+KEY_LENTH-1:HEAD_LENTH];
                //VALUE
-               m_value_length <= vallen*8;
-               if(vallen*8 >320)begin 
-                    state <= ST_VALUE; 
-                    value_data_buf <= s_axis_tdata[DATA_WIDTH-1:HEAD_LENTH+KEY_LENTH];
-               end
-               else begin
-                    m_value_valid <= 1;              
-                    m_value_last <= 1;
-                    state <= ST_IDLE;
-                    m_value_data <= {{HEAD_LENTH+KEY_LENTH{1'b0}},s_axis_tdata[DATA_WIDTH-1:HEAD_LENTH+KEY_LENTH]};
-               end
+               if(opcode==8'h01)begin
+                   m_value_length <= vallen*8;
+                   if(vallen*8 >320)begin 
+                        state <= ST_VALUE; 
+                        value_data_buf <= s_axis_tdata[DATA_WIDTH-1:HEAD_LENTH+KEY_LENTH];
+                   end
+                   else begin
+                        m_value_valid <= 1;              
+                        m_value_last <= 1;
+                        state <= ST_IDLE;
+                        m_value_data <= {{HEAD_LENTH+KEY_LENTH{1'b0}},s_axis_tdata[DATA_WIDTH-1:HEAD_LENTH+KEY_LENTH]};
+                   end
+                end else begin
+                    m_value_length <= '0;
+                    state <= ST_IDLE;             
+                end
            end 
         end
         ST_VALUE: begin
-            if (s_axis_tvalid==1 && s_axis_tready==1) begin
-                m_value_valid <= 1;
-                value_last_buf <= s_axis_tlast;
-                if (value_last_buf==1) begin
-						state <= ST_IDLE;						
-						m_value_last <= 1;
-						
-						inready <= 0;
-			     end
-			     value_data_buf <=  s_axis_tdata[DATA_WIDTH-1:HEAD_LENTH+KEY_LENTH];
-			     m_value_data <= {s_axis_tdata[HEAD_LENTH+KEY_LENTH-1:0],value_data_buf};
+            m_value_valid <= 1'b0;
+            m_value_last  <= 1'b0;     
+            if (s_axis_tvalid && s_axis_tready) begin
+                m_value_valid <= 1'b1;
+                if (value_last_buf) begin
+                    m_value_data   <= {'0, value_data_buf};
+                    m_value_last   <= 1'b1;
+                    state          <= ST_IDLE;
+                    inready        <= 1'b0;
+                    value_last_buf <= 1'b0;   
+                end
+                else begin
+                    m_value_data   <= {s_axis_tdata[HEAD_LENTH+KEY_LENTH-1:0], value_data_buf};
+                    value_data_buf <=  s_axis_tdata[DATA_WIDTH-1:HEAD_LENTH+KEY_LENTH];
+                    if (s_axis_tlast && (s_axis_tkeep > 64'hFF_FFFF)) begin
+                        value_last_buf <= 1'b1;
+                    end
+                    else if (s_axis_tlast && (s_axis_tkeep < 64'hFF_FFFF)) begin
+                        m_value_last <= 1'b1;
+                        state        <= ST_IDLE;
+                        inready      <= 1'b0;
+                    end
+                end
             end
         end
         ST_DROP: begin
