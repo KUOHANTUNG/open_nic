@@ -39,7 +39,7 @@ module front_end_transit_tb;
     reg                         clk;
     reg                         rst_n; 
     
-    logic [527:0]               m_value_data;
+    logic [543:0]               m_value_data;
     logic                       m_value_valid;
     logic                       m_value_ready;
     

@@ -35,24 +35,24 @@ module ram(
 
     // Port A INPUT
     input                   s_axis_rx_valid_a,
-    input  [511:0]          s_axis_rx_data_a,
+    input  [527:0]          s_axis_rx_data_a,
     output reg              s_axis_rx_ready_a,
 
     // Port A OUTPUT
     output reg              s_axis_tx_valid_a,
-    output reg [511:0]      s_axis_tx_data_a,
+    output reg [527:0]      s_axis_tx_data_a,
     input                   s_axis_tx_ready_a,
     input  [15:0]           s_axis_addr_a,
     input                   read_or_write_a,   // 0: read, 1: write
 
     // Port B INPUT
     input                   s_axis_rx_valid_b,
-    input  [511:0]          s_axis_rx_data_b,
+    input  [527:0]          s_axis_rx_data_b,
     output reg              s_axis_rx_ready_b,
 
     // Port B OUTPUT
     output reg              s_axis_tx_valid_b,
-    output reg [511:0]      s_axis_tx_data_b,
+    output reg [527:0]      s_axis_tx_data_b,
     input                   s_axis_tx_ready_b,
     input  [15:0]           s_axis_addr_b,
     input                   read_or_write_b    // 0: read, 1: write
@@ -150,7 +150,7 @@ module ram(
 
             s_axis_rx_ready_a <= 1'b1;
             s_axis_tx_valid_a <= 1'b0;
-            s_axis_tx_data_a  <= 512'd0;
+            s_axis_tx_data_a  <= 528'd0;
 
             state_a           <= ST_A_IDLE;
             in_class_a        <= 2'd0;
@@ -195,7 +195,7 @@ module ram(
                             en_a      <= 1'b1;
                             rdb_wr_a  <= 1'b1;
                             addr_a    <= s_axis_addr_a;
-                            wr_data_a <= {64'd0, s_axis_rx_data_a};
+                            wr_data_a <= {48'd0, s_axis_rx_data_a};
                             if (class_to_beats(s_axis_addr_a[15:14]) == 4'd1) begin
                                 state_a <= ST_A_IDLE;
                             end else begin
@@ -216,7 +216,7 @@ module ram(
                         beats_issued_a<= beats_issued_a + 1'b1;
                     end                 
                     if (rd_valid_pipe_a[URAM_RD_LAT]) begin                       
-                        s_axis_tx_data_a  <= rd_data_a[511:0];
+                        s_axis_tx_data_a  <= rd_data_a[527:0];
                         s_axis_tx_valid_a <= 1'b1;
                         beats_sent_a      <= beats_sent_a + 1'b1;                     
                         if (beats_sent_a + 1 == beats_total_a) begin
@@ -232,7 +232,7 @@ module ram(
                         en_a      <= 1'b1;
                         rdb_wr_a  <= 1'b1;
                         addr_a    <= base_addr_a + beats_issued_a;
-                        wr_data_a <= {64'd0, s_axis_rx_data_a};
+                        wr_data_a <= {48'd0, s_axis_rx_data_a};
 
                         if (beats_issued_a + 1 < beats_total_a) begin
                             beats_issued_a <= beats_issued_a + 1'b1;
@@ -257,7 +257,7 @@ module ram(
 
             s_axis_rx_ready_b <= 1'b1;
             s_axis_tx_valid_b <= 1'b0;
-            s_axis_tx_data_b  <= 512'd0;
+            s_axis_tx_data_b  <= 528'd0;
 
             state_b           <= ST_B_IDLE;
             in_class_b        <= 2'd0;
@@ -311,7 +311,7 @@ module ram(
                             en_b      <= 1'b1;
                             rdb_wr_b  <= 1'b1;
                             addr_b    <= s_axis_addr_b;
-                            wr_data_b <= {64'd0, s_axis_rx_data_b};
+                            wr_data_b <= {48'd0, s_axis_rx_data_b};
 
                             if (class_to_beats(s_axis_addr_b[15:14]) == 4'd1) begin
                                 state_b <= ST_B_IDLE;
@@ -336,7 +336,7 @@ module ram(
                     end
 
                     if (rd_valid_pipe_b[URAM_RD_LAT]) begin
-                        s_axis_tx_data_b  <= rd_data_b[511:0];
+                        s_axis_tx_data_b  <= rd_data_b[527:0];
                         s_axis_tx_valid_b <= 1'b1;
                         beats_sent_b      <= beats_sent_b + 1'b1;
 
@@ -353,7 +353,7 @@ module ram(
                         en_b      <= 1'b1;
                         rdb_wr_b  <= 1'b1;
                         addr_b    <= base_addr_b + beats_issued_b;
-                        wr_data_b <= {64'd0, s_axis_rx_data_b};
+                        wr_data_b <= {48'd0, s_axis_rx_data_b};
                         if (beats_issued_b+1  < beats_total_b) begin
                             beats_issued_b <= beats_issued_b + 1'b1;
                         end else begin

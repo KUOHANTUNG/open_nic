@@ -29,7 +29,7 @@ module front_end_transit(
     input [63:0]                    s_axis_tkeep,  
     output                          s_axis_tready,
     
-    output reg [527:0]              m_value_data,
+    output reg [543:0]              m_value_data,
     output reg                      m_value_valid,
     input                           m_value_ready, 
     
@@ -66,6 +66,8 @@ module front_end_transit(
     logic           value_valid; 
     logic [15:0]    value_length;
     logic [15:0]    value_box_number;//one box = 512 bits
+    logic [15:0]    value_box_number_launcher;
+    logic [15:0]    value_len_byte;
     logic           value_last;  
     logic           value_ready;      
     
@@ -137,6 +139,8 @@ module front_end_transit(
              insert_wait_counter <= '0;
              alloc_pointer_buffer <= '0;
              launch_state <= ST_LAUNCH_IDLE;
+             value_box_number_launcher <= '0;
+             value_len_byte <= '0;
         end
         else begin
             if(m_key_valid && m_key_ready)begin
@@ -154,10 +158,10 @@ module front_end_transit(
                     end
                end
                ST_LAUNCH_BEGIN: begin
-                if(value_box_number - 1 > 0)begin
-                    value_box_number <= value_box_number - 1;
+                if(value_box_number_launcher - 1 > 0)begin
+                    value_box_number_launcher <= value_box_number_launcher - 1;
                     m_value_valid     <= fifo_value_valid;
-                    m_value_data      <= {alloc_pointer_buffer, fifo_value_out_data};
+                    m_value_data      <= {alloc_pointer_buffer,16'b0,fifo_value_out_data};
                     fifo_value_ready  <= m_value_ready;
                 end
                 else begin
@@ -172,10 +176,11 @@ module front_end_transit(
                     if (meta_valid && meta_ready) begin
                         if (meta_data[95:88] == 8'd1) begin
                             state <= ST_INSERT_BEGIN;
-                           value_box_number <= ( meta_data[79:64] + 6'd63 ) >> 6;
+                            value_box_number <= ( meta_data[79:64] + 6'd63 ) >> 6;
                             key_valid_buffer <= key_valid;
                             insert_wait_counter <= insert_wait_counter + 1;
                             alloc_ready <= m_value_ready && m_key_ready;
+                            value_len_byte    <=  meta_data[79:64];  
                         end
                         else begin
                             m_value_valid   <= '0;
@@ -190,12 +195,13 @@ module front_end_transit(
                     if(insert_wait_counter == 2)begin
                         insert_wait_counter <= '0;
                         m_value_valid     <= fifo_value_valid && alloc_valid;
-                        m_value_data      <= {alloc_pointer, fifo_value_out_data};
+                        m_value_data      <= {alloc_pointer,value_len_byte, fifo_value_out_data};
                         alloc_pointer_buffer <= alloc_pointer;
                         fifo_value_ready  <= m_value_ready;
                         m_key_valid       <= alloc_valid && key_valid_buffer;
                         m_key_data        <= {1'b0, alloc_pointer, key_data};
-                        alloc_ready       <= '0;                      
+                        alloc_ready       <= '0;  
+                        value_box_number_launcher <= value_box_number;        
                         state <= ST_IDLE;
                     end
                     else begin

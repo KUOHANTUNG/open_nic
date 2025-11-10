@@ -142,7 +142,7 @@ always@(posedge clk)begin
                 //meta
                m_meta_data <= {opcode,keylen,vallen,net_meta};
                m_meta_valid <= 1;
-               m_malloc_data <= vallen*8;
+               m_malloc_data <= vallen;
                m_malloc_valid <= (opcode==8'h01) ? 1 : 0;
                // KEY
                m_key_valid <= 1;
