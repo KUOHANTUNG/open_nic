@@ -64,10 +64,10 @@ module host_ack_parser(
                 m_axis_ack_dst <= 16'd0;
                 m_axis_ack_src <= 16'h1 << (0 + 6);
                 if(s_axis_key_udp_result)begin
-                    m_axis_ack_data <= {8'hFF, s_axis_key_udp};
+                    m_axis_ack_data <= { s_axis_key_udp,8'hFF};
                 end 
                 else begin
-                    m_axis_ack_data <= {8'h00, s_axis_key_udp};
+                    m_axis_ack_data <= {s_axis_key_udp,8'h00};
                 end
             end
         end 

@@ -159,15 +159,15 @@ module transmission_subsystem(
                  .clk(clk),                   
                  .rst_n(rst_n),                 
                                         
-                 .m_axis_meta_valid(s_axis_meta_valid),     
-                 .m_axis_meta_key(s_axis_meta_key),       
-                 .m_axis_meta_hit(s_axis_meta_hit),       
-                 .m_axis_meta_ready(s_axis_meta_ready),     
+                 .s_axis_meta_valid(s_axis_meta_valid),     
+                 .s_axis_meta_key(s_axis_meta_key),       
+                 .s_axis_meta_hit(s_axis_meta_hit),       
+                 .s_axis_meta_ready(s_axis_meta_ready),     
                                         
-                 .m_axis_ram_valid(s_axis_ram_valid),      
-                 .m_axis_ram_lenth(s_axis_ram_lenth),      
-                 .m_axis_ram_data(s_axis_ram_data),       
-                 .m_axis_ram_ready(s_axis_ram_ready),      
+                 .s_axis_ram_valid(s_axis_ram_valid),      
+                 .s_axis_ram_lenth(s_axis_ram_lenth),      
+                 .s_axis_ram_data(s_axis_ram_data),       
+                 .s_axis_ram_ready(s_axis_ram_ready),      
                                         
                  .m_axis_tx_tvalid(m_axis_card_peer_valid),      
                  .m_axis_tx_tdata(m_axis_card_peer_data),       

@@ -53,6 +53,7 @@ module front_end_transit(
     wire    [15:0]  parser_to_allocator_data;
     wire            parser_to_allocator_ready;
     
+    
     logic [95:0]    meta_data;
     logic           meta_valid;
     logic           meta_ready;
@@ -122,6 +123,26 @@ module front_end_transit(
         .m_axis_ready (free_pointer_ready)    
     );
     
+    reg alloc_busy;
+    logic alloc_req_ready;
+    
+    assign parser_to_allocator_ready = ~alloc_busy && alloc_req_ready;
+    
+    assign alloc_ready =  m_value_ready && m_key_ready && alloc_busy;
+    
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            alloc_busy <= 1'b0;
+        end else begin
+            if (parser_to_allocator_valid && parser_to_allocator_ready) begin
+                alloc_busy <= 1'b1;
+            end
+            else if (alloc_valid && alloc_ready) begin
+                alloc_busy <= 1'b0;
+            end
+        end
+    end
+  
     assign key_ready = m_key_ready;
     assign meta_ready = 1'b1;
     always @(posedge clk) begin
@@ -179,12 +200,10 @@ module front_end_transit(
                             value_box_number <= ( meta_data[79:64] + 6'd63 ) >> 6;
                             key_valid_buffer <= key_valid;
                             insert_wait_counter <= insert_wait_counter + 1;
-                            alloc_ready <= m_value_ready && m_key_ready;
                             value_len_byte    <=  meta_data[79:64];  
                         end
                         else begin
                             m_value_valid   <= '0;
-                            alloc_ready     <= 0;
                             m_key_valid       <= key_valid;
                             m_key_data        <= {1'b1, 16'h0000, key_data};
                             fifo_value_ready  <= 1'b0;
@@ -199,8 +218,7 @@ module front_end_transit(
                         alloc_pointer_buffer <= alloc_pointer;
                         fifo_value_ready  <= m_value_ready;
                         m_key_valid       <= alloc_valid && key_valid_buffer;
-                        m_key_data        <= {1'b0, alloc_pointer, key_data};
-                        alloc_ready       <= '0;  
+                        m_key_data        <= {1'b0, alloc_pointer, key_data}; 
                         value_box_number_launcher <= value_box_number;        
                         state <= ST_IDLE;
                     end
@@ -264,7 +282,7 @@ module front_end_transit(
                 
         .req_valid     (parser_to_allocator_valid),
         .req_data      (parser_to_allocator_data),
-        .req_ready     (parser_to_allocator_ready),
+        .req_ready     (alloc_req_ready),
                 
         .alloc_pointer (alloc_pointer),  
         .alloc_valid   (alloc_valid),
