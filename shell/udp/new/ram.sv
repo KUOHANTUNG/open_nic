@@ -168,7 +168,7 @@ module ram(
             bwe_a     <= 9'h1FF;
 
             issue_read_a <= 1'b0;
-            rd_valid_pipe_a <= { rd_valid_pipe_a[URAM_RD_LAT-1:0], issue_read_a };       
+            rd_valid_pipe_a <= {issue_read_a };       
             if (s_axis_tx_valid_a && s_axis_tx_ready_a)
                 s_axis_tx_valid_a <= 1'b0;
 
@@ -275,7 +275,7 @@ module ram(
             bwe_b     <= 9'h1FF;
 
             issue_read_b <= 1'b0;
-            rd_valid_pipe_b <= { rd_valid_pipe_b[URAM_RD_LAT-1:0], issue_read_b };
+            rd_valid_pipe_b <= {issue_read_b };
 
             if (s_axis_tx_valid_b && s_axis_tx_ready_b)
                 s_axis_tx_valid_b <= 1'b0;

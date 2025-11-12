@@ -271,7 +271,7 @@ module front_end_transit(
         .m_malloc_ready (parser_to_allocator_ready)
     );
     
-    allocator #(
+    alloc #(
         .cache_depth (16),  
         .MEMORY_WIDTH(512),
         .CLASS_COUNT (4),   
