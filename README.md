@@ -37,6 +37,7 @@ Exploring FPGA-based SmartNIC designs for Network Acceleration in the Datacenter
 
 ## Repository Layout
 
+```text
 open_nic/
 ├─ project/                 # Entry point for building the design
 │  ├─ board_files/
@@ -53,6 +54,8 @@ open_nic/
 │  │  └─ test_files/
 │  ├─ src/
 │  └─ config.txt            # all register config commands
+
+
 ---
 
 ## Quick Start
