@@ -38,21 +38,21 @@ Exploring FPGA-based SmartNIC designs for Network Acceleration in the Datacenter
 ## Repository Layout
 
 open_nic/
-├─ project/ # Entry point for building the design
-    └─ board_files
-    └─ constr
-    └─ plugin   # rewrite official p2p
-    └─ plugin_src # plugin main source
-        └─ ip # all ip designs (includes xilinx ones)
-        └─ ip_hls # source files 
-        └─ sim #simulation files
-        └─ source # source files
-    └─ script
-    └─ software
-        └─ DPDK_app
-        └─ test_files
-    └─ src
-    └─ config.txt #all register config commands
+├─ project/                 # Entry point for building the design
+│  ├─ board_files/
+│  ├─ constr/
+│  ├─ plugin/               # rewrite official p2p
+│  ├─ plugin_src/           # plugin main source
+│  ├─ ip/                   # all IP designs (includes Xilinx ones)
+│  ├─ ip_hls/               # HLS source files
+│  ├─ sim/                  # simulation files
+│  ├─ source/               # RTL/source files
+│  ├─ script/
+│  ├─ software/
+│  │  ├─ DPDK_app/
+│  │  └─ test_files/
+│  ├─ src/
+│  └─ config.txt            # all register config commands
 ---
 
 ## Quick Start
@@ -109,7 +109,7 @@ vivado -mode tcl -source build.tcl -tclargs \
   -num_qdma 1
 This command generates and builds the Vivado project using the specified configuration.
 
-4) Replace Plugin Sources
+### 4) Replace Plugin Sources
 
 After build.tcl generates the project/build output, you must overwrite the generated plugin sources with the customized versions:
 
@@ -133,7 +133,7 @@ Plugin replacement: if you re-run a clean build, generated sources may be recrea
 
 Rebuild after plugin replace: depending on how build.tcl organizes synthesis runs, you may need to rerun synthesis/implementation after overwriting plugin sources.
 
-8. License / Disclaimer
+### 5) License / Disclaimer
 
 This project is provided for research and academic use. Validate and review thoroughly before using in production environments.
 the network module design references the FPGA Network Stack project:https://github.com/fpgasystems/fpga-network-stack
