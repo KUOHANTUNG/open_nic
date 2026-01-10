@@ -1,0 +1,44 @@
+/*open pcimem*/
+sudo setpci -s 99:00.0 COMMAND=0x02;
+
+/*ENTER PCI FOLDER*/
+
+cd -P /sys/bus/pci/devices/0000:99:00.0 && pwd
+
+/* SET NIC*/
+
+sudo pcimem resource2 0x000C w 0x10
+sudo pcimem resource2 0x907c w 0x3
+sudo pcimem resource2 0x9000 w 0x7
+sudo pcimem resource2 0x8014 w 0x1
+sudo pcimem resource2 0x800C w 0x10
+sudo pcimem resource2 0x8204 w
+sudo pcimem resource2 0x800C w 0x1
+
+sudo pcimem resource2 0x8084 w 0x00003DFF
+sudo pcimem resource2 0x8088 w 0x0001C631
+sudo pcimem resource2 0x8048 w 0xFFFFFFFF
+sudo pcimem resource2 0x804C w 0xFFFFFFFF
+sudo pcimem resource2 0x8050 w 0xFFFFFFFF
+sudo pcimem resource2 0x8054 w 0xFFFFFFFF
+sudo pcimem resource2 0x8058 w 0x0000FFFF
+sudo pcimem resource2 0x8034 w 0xFFFFFFFF
+sudo pcimem resource2 0x8038 w 0xFFFFFFFF
+sudo pcimem resource2 0x803C w 0xFFFFFFFF
+sudo pcimem resource2 0x8040 w 0xFFFFFFFF
+sudo pcimem resource2 0x8044 w 0x0000FFFF
+sudo pcimem resource2 0x8030 w 0x000001FF
+
+/*SET NETWORK STACK*/
+sudo pcimem resource2 0x200000 w 0x11111111 //IP addr
+sudo pcimem resource2 0x200008 w 0x4633
+sudo pcimem resource2 0x20000C w 0x6f350a00 //MAC addr
+sudo pcimem resource2 0x200018 w 0x1388	// Port
+
+/*SET QDMA QUEUES*/
+sudo pcimem resource2 0x1000 w 0x10
+sudo pcimem resource2 0x2000 w 0x0010010
+
+/*BIND CARD*/
+sudo dpdk_patched/dpdk-20.11/usertools/dpdk-devbind.py -b vfio-pci 99:00.0
+sudo dpdk_patched/dpdk-20.11/usertools/dpdk-devbind.py -u 99:00.0
