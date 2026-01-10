@@ -139,4 +139,5 @@ Rebuild after plugin replace: depending on how build.tcl organizes synthesis run
 ### 5) License / Disclaimer
 
 This project is provided for research and academic use. Validate and review thoroughly before using in production environments.
-the network module design references the FPGA Network Stack project:https://github.com/fpgasystems/fpga-network-stack
+
+The network module design references the [FPGA Network Stack project](https://github.com/fpgasystems/fpga-network-stack).
