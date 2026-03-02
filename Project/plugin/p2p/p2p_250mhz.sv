@@ -92,6 +92,34 @@ module p2p_250mhz #(
 );
 
   wire axil_aresetn;
+  
+  /****Evaluation register****/
+  reg       [63:0]      timer_cnt; 
+  reg       [31:0]      tx_pkt_cnt;
+  reg       [31:0]      rx_pkt_cnt; 
+  
+  wire                  tx_valid;
+  wire      [511:0]     tx_data;
+  wire                  tx_ready;
+  wire                  rx_valid;
+  wire                  rx_ready;
+  
+  time_evaluator_250mhz 
+  time_evaluator_250mhz_inst(
+    .clk(axis_aclk),                        
+    .rst_n(axil_aresetn),                      
+                                
+    .s_axis_host_input_valid(tx_valid),    
+    .s_axis_host_input_data(tx_data),     
+    .s_axis_host_input_ready(tx_ready),    
+                                
+    .m_axis_host_output_valid(rx_valid),   
+    .m_axis_host_output_ready(rx_ready),   
+                                
+    .rx_pkt(rx_pkt_cnt),                     
+    .tx_pkt(tx_pkt_cnt),                     
+    .running_cnt(timer_cnt)                 
+  );
 
   // Reset is clocked by the 125MHz AXI-Lite clock
   generic_reset #(
@@ -105,38 +133,57 @@ module p2p_250mhz #(
   );
 
   generate if (NUM_QDMA <= 1) begin
-    axi_lite_slave #(
-      .REG_ADDR_W (12),
-      .REG_PREFIX (16'hB000)
-    ) reg_inst (
-      .s_axil_awvalid (s_axil_awvalid),
-      .s_axil_awaddr  (s_axil_awaddr),
-      .s_axil_awready (s_axil_awready),
-      .s_axil_wvalid  (s_axil_wvalid),
-      .s_axil_wdata   (s_axil_wdata),
-      .s_axil_wready  (s_axil_wready),
-      .s_axil_bvalid  (s_axil_bvalid),
-      .s_axil_bresp   (s_axil_bresp),
-      .s_axil_bready  (s_axil_bready),
-      .s_axil_arvalid (s_axil_arvalid),
-      .s_axil_araddr  (s_axil_araddr),
-      .s_axil_arready (s_axil_arready),
-      .s_axil_rvalid  (s_axil_rvalid),
-      .s_axil_rdata   (s_axil_rdata),
-      .s_axil_rresp   (s_axil_rresp),
-      .s_axil_rready  (s_axil_rready),
+//    axi_lite_slave #(
+//      .REG_ADDR_W (12),
+//      .REG_PREFIX (16'hB000)
+//    ) reg_inst (
+//      .s_axil_awvalid (s_axil_awvalid),
+//      .s_axil_awaddr  (s_axil_awaddr),
+//      .s_axil_awready (s_axil_awready),
+//      .s_axil_wvalid  (s_axil_wvalid),
+//      .s_axil_wdata   (s_axil_wdata),
+//      .s_axil_wready  (s_axil_wready),
+//      .s_axil_bvalid  (s_axil_bvalid),
+//      .s_axil_bresp   (s_axil_bresp),
+//      .s_axil_bready  (s_axil_bready),
+//      .s_axil_arvalid (s_axil_arvalid),
+//      .s_axil_araddr  (s_axil_araddr),
+//      .s_axil_arready (s_axil_arready),
+//      .s_axil_rvalid  (s_axil_rvalid),
+//      .s_axil_rdata   (s_axil_rdata),
+//      .s_axil_rresp   (s_axil_rresp),
+//      .s_axil_rready  (s_axil_rready),
 
-      .aclk           (axil_aclk),
-      .aresetn        (axil_aresetn)
-    );
+//      .aclk           (axil_aclk),
+//      .aresetn        (axil_aresetn)
+//    );
+  box_250_registers box_250_register_inst(
+         .s_axil_awvalid (s_axil_awvalid),
+         .s_axil_awaddr  (s_axil_awaddr),
+         .s_axil_awready (s_axil_awready),
+         .s_axil_wvalid  (s_axil_wvalid),
+         .s_axil_wdata   (s_axil_wdata),
+         .s_axil_wready  (s_axil_wready),
+         .s_axil_bvalid  (s_axil_bvalid),
+         .s_axil_bresp   (s_axil_bresp),
+         .s_axil_bready  (s_axil_bready),
+         .s_axil_arvalid (s_axil_arvalid),
+         .s_axil_araddr  (s_axil_araddr),
+         .s_axil_arready (s_axil_arready),
+         .s_axil_rvalid  (s_axil_rvalid),
+         .s_axil_rdata   (s_axil_rdata),
+         .s_axil_rresp   (s_axil_rresp),
+         .s_axil_rready  (s_axil_rready),               
+                                       
+         .regExeCount(timer_cnt),
+         .rx_pkt(rx_pkt_cnt),
+         .tx_pkt(tx_pkt_cnt), 
+                              
+         .axil_aclk(axil_aclk),            
+         .axil_aresetn(axil_aresetn)              
+  );
   end
   endgenerate
-
-
-
-
-
-
 
   generate for (genvar i = 0; i < NUM_INTF; i++) begin
     wire          [16*3-1:0] axis_adap_tx_250mhz_tuser;
@@ -201,6 +248,74 @@ module p2p_250mhz #(
       );
     end
     else begin
+//        wire             adapter_fifo_tvalid;
+//        wire [511:0]     adapter_fifo_tdata;
+//        wire  [63:0]     adapter_fifo_tkeep;
+//        wire             adapter_fifo_tlast;
+//        wire             adapter_fifo_tready;
+//        wire  [47:0]     adapter_fifo_tuser;
+        
+//        wire             fifo_process_tvalid;
+//        wire [511:0]     fifo_process_tdata;
+//        wire  [63:0]     fifo_process_tkeep;
+//        wire             fifo_process_tlast;
+//        wire  [15:0]     fifo_process_tuser_size;
+//        wire  [15:0]     fifo_process_tuser_src;
+//        wire  [15:0]     fifo_process_tuser_dst;
+//        wire             fifo_process_tready;
+//        wire  [47:0]     fifo_process_tuser;
+        
+//        wire             fifo_adapter_tvalid;
+//        wire [511:0]     fifo_adapter_tdata;
+//        wire  [63:0]     fifo_adapter_tkeep;
+//        wire             fifo_adapter_tlast;
+//        wire             fifo_adapter_tready;
+//        wire  [47:0]     fifo_adapter_tuser;
+        
+//        wire             process_fifo_tvalid;
+//        wire [511:0]     process_fifo_tdata;
+//        wire  [63:0]     process_fifo_tkeep;
+//        wire             process_fifo_tlast;
+//        wire  [15:0]     process_fifo_tuser_size;
+//        wire  [15:0]     process_fifo_tuser_src;
+//        wire  [15:0]     process_fifo_tuser_dst;
+//        wire             process_fifo_tready;
+//        wire  [47:0]     process_fifo_tuser;
+        
+       
+//        wire             host_fifo_tvalid;
+//        wire [511:0]     host_fifo_tdata;
+//        wire  [63:0]     host_fifo_tkeep;
+//        wire             host_fifo_tlast;
+//        wire             host_fifo_tready;
+//        wire  [47:0]     host_fifo_tuser;
+        
+//        wire             fifo_card_tvalid;
+//        wire [511:0]     fifo_card_tdata;
+//        wire  [63:0]     fifo_card_tkeep;
+//        wire             fifo_card_tlast;
+//        wire  [15:0]     fifo_card_tuser_size;
+//        wire  [15:0]     fifo_card_tuser_src;
+//        wire  [15:0]     fifo_card_tuser_dst;
+//        wire             fifo_card_tready;
+//        wire  [47:0]     fifo_card_tuser;
+       
+//        wire             card_fifo_tvalid;
+//        wire [511:0]     card_fifo_tdata;
+//        wire  [63:0]     card_fifo_tkeep;
+//        wire             card_fifo_tlast;
+//        wire  [15:0]     card_fifo_tuser_size;
+//        wire  [15:0]     card_fifo_tuser_src;
+//        wire  [15:0]     card_fifo_tuser_dst;
+//        wire             card_fifo_tready;
+//        wire  [47:0]     card_fifo_tuser;
+        
+//        wire             fifo_host_tvalid;
+//        wire [511:0]     fifo_host_tdata;
+//        wire  [63:0]     fifo_host_tkeep;
+//        wire             fifo_host_tlast;
+//        wire             fifo_host_tready;
+//        wire  [47:0]     fifo_host_tuser;
         wire             adapter_card_tvalid;
         wire [511:0]     adapter_card_tdata;
         wire  [63:0]     adapter_card_tkeep;
@@ -242,6 +357,21 @@ module p2p_250mhz #(
         wire             card_host_tready;
         wire  [47:0]     card_host_tuser;
         
+//        assign fifo_process_tuser_size = fifo_process_tuser[0+:16];
+//        assign fifo_process_tuser_src = fifo_process_tuser[16+:16];
+//        assign fifo_process_tuser_dst = 16'h1 << (6 + i);
+        
+//        assign process_fifo_tuser[0+:16] =  process_fifo_tuser_size;
+//        assign process_fifo_tuser[16+:16] = process_fifo_tuser_src;
+//        assign process_fifo_tuser[32+:16] = process_fifo_tuser_dst;
+        
+//        assign fifo_card_tuser_size =  fifo_card_tuser[0+:16];
+//        assign fifo_card_tuser_src =  fifo_card_tuser[16+:16];
+//        assign fifo_card_tuser_dst =  16'h1 << (6 + i);
+        
+//        assign card_fifo_tuser[0+:16]  = card_fifo_tuser_size;
+//        assign card_fifo_tuser[16+:16] = card_fifo_tuser_src;
+//        assign card_fifo_tuser[32+:16] = card_fifo_tuser_dst;
         assign adapter_card_tuser_size = adapter_card_tuser[0+:16];
         assign adapter_card_tuser_src = adapter_card_tuser[16+:16];
         assign adapter_card_tuser_dst = 16'h1 << (6 + i);
@@ -256,9 +386,9 @@ module p2p_250mhz #(
         
         assign card_host_tuser[0+:16]  = card_host_tuser_size;
         assign card_host_tuser[16+:16] = card_host_tuser_src;
-        assign card_host_tuser[32+:16] = card_host_tuser_dst;
+        assign card_host_tuser[32+:16] = card_host_tuser_dst;    
         
-        axi_stream_pipeline host_process_inst (
+    axi_stream_pipeline host_process_inst (
         .s_axis_tvalid (s_axis_qdma_h2c_tvalid[i]),
         .s_axis_tdata  (s_axis_qdma_h2c_tdata[`getvec(512, i)]),
         .s_axis_tkeep  (s_axis_qdma_h2c_tkeep[`getvec(64, i)]),
@@ -294,7 +424,44 @@ module p2p_250mhz #(
         .aclk          (axis_aclk),
         .aresetn       (axil_aresetn)
       ); 
-              // process stack
+//      //FIFO
+//      axis_data_fifo_64B axis_data_fifo_64B_h2c_inst(
+//        .s_axis_aresetn(axil_aresetn),
+//        .s_axis_aclk(axis_aclk),
+        
+//        .s_axis_tvalid(host_fifo_tvalid),
+//        .s_axis_tdata(host_fifo_tdata),
+//        .s_axis_tkeep(host_fifo_tkeep),
+//        .s_axis_tready(host_fifo_tready),
+//        .s_axis_tlast(host_fifo_tlast),
+//        .s_axis_tuser(host_fifo_tuser),
+        
+//        .m_axis_tvalid(fifo_card_tvalid),
+//        .m_axis_tdata(fifo_card_tdata),
+//        .m_axis_tkeep(fifo_card_tkeep),
+//        .m_axis_tready(fifo_card_tready),
+//        .m_axis_tlast(fifo_card_tlast),
+//        .m_axis_tuser(fifo_card_tuser)            
+//      );
+//        axis_data_fifo_64B axis_data_fifo_64B_c2h_inst(
+//        .s_axis_aresetn(axil_aresetn),
+//        .s_axis_aclk(axis_aclk),
+        
+//        .s_axis_tvalid(card_fifo_tvalid),
+//        .s_axis_tdata (card_fifo_tdata),
+//        .s_axis_tkeep (card_fifo_tkeep),
+//        .s_axis_tready(card_fifo_tready),
+//        .s_axis_tlast(card_fifo_tlast),
+//        .s_axis_tuser (card_fifo_tuser),
+        
+//        .m_axis_tvalid(fifo_host_tvalid),
+//        .m_axis_tdata (fifo_host_tdata),
+//        .m_axis_tkeep (fifo_host_tkeep),
+//        .m_axis_tready(fifo_host_tready),
+//        .m_axis_tlast (fifo_host_tlast),
+//        .m_axis_tuser (fifo_host_tuser)          
+//      );
+      // process stack
        process_stack process_stack_inst(
              
              .axis_clk(axis_aclk),                          
@@ -373,7 +540,44 @@ module p2p_250mhz #(
 
         .aclk          (axis_aclk),
         .aresetn       (axil_aresetn)
-      );   
+      ); 
+      
+      //FIFO
+//    axis_data_fifo_64B axis_data_fifo_64B_adapter_to_process_inst(
+//        .s_axis_aresetn(axil_aresetn),
+//        .s_axis_aclk(axis_aclk),
+        
+//        .s_axis_tvalid(adapter_fifo_tvalid),
+//        .s_axis_tdata (adapter_fifo_tdata),
+//        .s_axis_tkeep (adapter_fifo_tkeep),
+//        .s_axis_tready(adapter_fifo_tready),
+//        .s_axis_tlast(adapter_fifo_tlast),
+//        .s_axis_tuser (adapter_fifo_tuser),
+        
+//        .m_axis_tvalid(fifo_process_tvalid),
+//        .m_axis_tdata (fifo_process_tdata),
+//        .m_axis_tkeep (fifo_process_tkeep),
+//        .m_axis_tready(fifo_process_tready),
+//        .m_axis_tlast (fifo_process_tlast),
+//        .m_axis_tuser (fifo_process_tuser)            
+//    );   
+    
+//    axis_data_fifo_64B axis_data_fifo_64B_process_to_adapter_inst(
+//        .s_axis_aresetn(axil_aresetn),
+//        .s_axis_aclk(axis_aclk),
+        
+//        .s_axis_tvalid  (process_fifo_tvalid),
+//        .s_axis_tdata   (process_fifo_tdata),
+//        .s_axis_tkeep   (process_fifo_tkeep),
+//        .s_axis_tready  (process_fifo_tready),
+//        .s_axis_tuser   (process_fifo_tuser),
+        
+//        .m_axis_tvalid  (fifo_adapter_tvalid),
+//        .m_axis_tdata   (fifo_adapter_tdata),
+//        .m_axis_tkeep   (fifo_adapter_tkeep),
+//        .m_axis_tready  (fifo_adapter_tready),
+//        .m_axis_tuser   (fifo_adapter_tuser)            
+//      );    
     end
   end
   endgenerate

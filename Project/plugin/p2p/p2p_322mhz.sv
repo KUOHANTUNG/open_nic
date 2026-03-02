@@ -121,6 +121,19 @@ module p2p_322mhz #(
   wire      [15:0]                  axis_tx_transfer_to_stack_tuser_size;  
   wire                              axis_tx_transfer_to_stack_tready; 
 
+    /****Evaluation register****/
+      reg       [63:0]      timer_cnt; 
+      reg       [63:0]      tx_pkt_cnt;
+      reg       [63:0]      rx_pkt_cnt; 
+      
+      wire                  tx_valid;
+      wire                  tx_ready;
+      wire                  tx_last;
+      wire  [511:0]         tx_data;
+      wire  [511:0]         rx_data;
+      wire                  rx_valid;
+      wire                  rx_last;
+
 //---------------------------------------------------------------------------------
   generic_reset #(
     .NUM_INPUT_CLK  (1 + NUM_CMAC_PORT),
@@ -164,7 +177,9 @@ module p2p_322mhz #(
          .regReplyCount_vld(ReplyCount_vld),    
          .regRequestCount(RequestCount),      
          .regReplyCount(ReplyCount),        
-                               
+         .regExeCount(timer_cnt), 
+         .regRXpkts(rx_pkt_cnt),
+         .regTXpkts(tx_pkt_cnt),                     
          .axil_aclk(axil_aclk),            
          .axil_aresetn(axil_aresetn)              
   );
@@ -306,6 +321,37 @@ module p2p_322mhz #(
       .aclk          (cmac_clk[0]),
       .aresetn       (cmac_rstn[0])
     );
+/**************EVALUATION**************************************/
+
+
+    assign tx_valid = m_axis_cmac_tx_tvalid[0];
+    assign tx_ready = m_axis_cmac_tx_tready[0];
+    assign tx_last  = m_axis_cmac_tx_tlast[0];
+    assign tx_data = m_axis_cmac_tx_tdata[`getvec(512, 0)];
+    assign rx_data = s_axis_cmac_rx_tdata[`getvec(512, 0)];
+    assign rx_valid = s_axis_cmac_rx_tvalid[0];
+    assign rx_last  = s_axis_cmac_rx_tlast[0];
+    time_evaluator time_evaluator_inst(
+        .clk(cmac_clk[0]),       
+        .rst_n(cmac_rstn[0]),     
+                   
+        .tx_valid(tx_valid),  
+        .tx_ready(tx_ready),  
+        .tx_data(tx_data),   
+        .tx_last(tx_last),   
+                   
+        .rx_valid(rx_valid),  
+        .rx_data(rx_data),   
+        .rx_last(rx_last),   
+        
+        .running_cnt(timer_cnt), 
+        .tx_pkts(tx_pkt_cnt),     
+        .rx_pkts(rx_pkt_cnt)      
+     );
+    
+    
+/*********************************************************************/
+    /******/
     axi_stream_register_slice #(
       .TDATA_W (512),
       .TUSER_W (1),
